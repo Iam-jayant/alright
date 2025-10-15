@@ -21,7 +21,7 @@ export const EXTERNAL_APIS = {
 
 // Map configuration
 export const MAP_CONFIG = {
-  DEFAULT_CENTER: { lat: 25.2048, lng: 55.2708 }, // Dubai
+  DEFAULT_CENTER: { lat: 21.1458, lng: 79.0882 }, // Nagpur, India
   DEFAULT_ZOOM: 12,
   MAX_ZOOM: 18,
   MIN_ZOOM: 8,
@@ -78,7 +78,7 @@ export const NOTIFICATION_CONFIG = {
   PERSIST_DAYS: 30,
 } as const
 
-// Ticket categories
+// Ticket categories (Indian context)
 export const TICKET_CATEGORIES = [
   'plumbing',
   'electrical',
@@ -88,10 +88,13 @@ export const TICKET_CATEGORIES = [
   'painting',
   'cleaning',
   'security',
+  'water_tank',
+  'inverter_repair',
+  'gas_connection',
   'other',
 ] as const
 
-// Technician skills
+// Technician skills (Indian context)
 export const TECHNICIAN_SKILLS = [
   'plumbing',
   'electrical',
@@ -101,16 +104,20 @@ export const TECHNICIAN_SKILLS = [
   'painting',
   'cleaning',
   'security',
+  'water_tank',
+  'inverter_repair',
+  'gas_connection',
   'general_repair',
 ] as const
 
-// Vehicle types
+// Vehicle types (Indian context)
 export const VEHICLE_TYPES = [
+  'bike',
+  'scooter',
+  'auto_rickshaw',
+  'car',
   'van',
   'truck',
-  'car',
-  'motorcycle',
-  'bicycle',
 ] as const
 
 // Status mappings

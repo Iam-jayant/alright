@@ -1,18 +1,11 @@
--- Field Service SaaS MVP Database Schema
--- Supabase PostgreSQL with Row Level Security (RLS)
-
--- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
 
--- Create custom types
 CREATE TYPE user_role AS ENUM ('manager', 'technician', 'customer');
 CREATE TYPE ticket_status AS ENUM ('pending', 'assigned', 'en_route', 'arrived', 'in_progress', 'completed', 'cancelled');
 CREATE TYPE ticket_priority AS ENUM ('low', 'medium', 'high', 'urgent');
 CREATE TYPE technician_status AS ENUM ('available', 'busy', 'offline');
 CREATE TYPE assignment_status AS ENUM ('pending', 'accepted', 'rejected', 'in_progress', 'completed');
-
--- Profiles table (extends Supabase auth.users)
 CREATE TABLE profiles (
     id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
@@ -24,7 +17,6 @@ CREATE TABLE profiles (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Technicians table
 CREATE TABLE technicians (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE UNIQUE NOT NULL,
@@ -38,7 +30,6 @@ CREATE TABLE technicians (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Tickets table
 CREATE TABLE tickets (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     tracking_number TEXT UNIQUE NOT NULL DEFAULT 'TKT-' || EXTRACT(EPOCH FROM NOW())::BIGINT,
@@ -53,12 +44,11 @@ CREATE TABLE tickets (
     image_urls TEXT[] DEFAULT '{}',
     priority ticket_priority DEFAULT 'medium',
     status ticket_status DEFAULT 'pending',
-    estimated_duration INTEGER, -- in minutes
+    estimated_duration INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Assignments table
 CREATE TABLE assignments (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     ticket_id UUID REFERENCES tickets(id) ON DELETE CASCADE NOT NULL,
@@ -74,19 +64,17 @@ CREATE TABLE assignments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Locations table (technician location history)
 CREATE TABLE locations (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     technician_id UUID REFERENCES technicians(id) ON DELETE CASCADE NOT NULL,
     lat DECIMAL(10, 8) NOT NULL,
     lng DECIMAL(11, 8) NOT NULL,
-    speed DECIMAL(5, 2), -- km/h
-    heading DECIMAL(5, 2), -- degrees
-    accuracy DECIMAL(5, 2), -- meters
+    speed DECIMAL(5, 2),
+    heading DECIMAL(5, 2),
+    accuracy DECIMAL(5, 2),
     recorded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Geofences table
 CREATE TABLE geofences (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     ticket_id UUID REFERENCES tickets(id) ON DELETE CASCADE NOT NULL,
@@ -98,7 +86,6 @@ CREATE TABLE geofences (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Ratings table
 CREATE TABLE ratings (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     ticket_id UUID REFERENCES tickets(id) ON DELETE CASCADE NOT NULL,
@@ -109,19 +96,17 @@ CREATE TABLE ratings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Notifications table
 CREATE TABLE notifications (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     message TEXT NOT NULL,
-    type TEXT NOT NULL, -- 'assignment', 'status_update', 'rating_request', etc.
+    type TEXT NOT NULL,
     data JSONB DEFAULT '{}',
     read_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes for better performance
 CREATE INDEX idx_technicians_status ON technicians(status);
 CREATE INDEX idx_technicians_location ON technicians(current_lat, current_lng);
 CREATE INDEX idx_tickets_status ON tickets(status);
@@ -136,7 +121,6 @@ CREATE INDEX idx_geofences_ticket_id ON geofences(ticket_id);
 CREATE INDEX idx_ratings_technician_id ON ratings(technician_id);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
 
--- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -145,15 +129,11 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Add updated_at triggers
 CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_technicians_updated_at BEFORE UPDATE ON technicians FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_tickets_updated_at BEFORE UPDATE ON tickets FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_assignments_updated_at BEFORE UPDATE ON assignments FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Row Level Security (RLS) Policies
-
--- Enable RLS on all tables
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE technicians ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tickets ENABLE ROW LEVEL SECURITY;
@@ -163,21 +143,18 @@ ALTER TABLE geofences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ratings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- Profiles policies
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "Managers can view all profiles" ON profiles FOR SELECT USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'manager')
 );
 
--- Technicians policies
 CREATE POLICY "Technicians can view own record" ON technicians FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "Technicians can update own record" ON technicians FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "Managers can view all technicians" ON technicians FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'manager')
 );
 
--- Tickets policies
 CREATE POLICY "Managers can view all tickets" ON tickets FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'manager')
 );
@@ -193,7 +170,6 @@ CREATE POLICY "Customers can view own tickets" ON tickets FOR SELECT USING (
 );
 CREATE POLICY "Public can view tickets by tracking number" ON tickets FOR SELECT USING (true);
 
--- Assignments policies
 CREATE POLICY "Managers can manage all assignments" ON assignments FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'manager')
 );
@@ -210,7 +186,6 @@ CREATE POLICY "Technicians can update own assignments" ON assignments FOR UPDATE
     )
 );
 
--- Locations policies
 CREATE POLICY "Technicians can manage own locations" ON locations FOR ALL USING (
     EXISTS (
         SELECT 1 FROM technicians t 
@@ -221,7 +196,6 @@ CREATE POLICY "Managers can view all locations" ON locations FOR SELECT USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'manager')
 );
 
--- Geofences policies
 CREATE POLICY "Managers can manage geofences" ON geofences FOR ALL USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'manager')
 );
@@ -233,27 +207,22 @@ CREATE POLICY "Technicians can view geofences for assigned tickets" ON geofences
     )
 );
 
--- Ratings policies
 CREATE POLICY "Anyone can view ratings" ON ratings FOR SELECT USING (true);
 CREATE POLICY "Customers can create ratings" ON ratings FOR INSERT WITH CHECK (
     customer_email = (SELECT email FROM profiles WHERE id = auth.uid()) OR
     customer_email = (SELECT email FROM auth.users WHERE id = auth.uid())
 );
 
--- Notifications policies
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "System can create notifications" ON notifications FOR INSERT WITH CHECK (true);
 
--- Create functions for common operations
-
--- Function to calculate distance between two points (Haversine formula)
 CREATE OR REPLACE FUNCTION calculate_distance(
     lat1 DECIMAL, lng1 DECIMAL, 
     lat2 DECIMAL, lng2 DECIMAL
 ) RETURNS DECIMAL AS $$
 DECLARE
-    earth_radius DECIMAL := 6371000; -- Earth radius in meters
+    earth_radius DECIMAL := 6371000;
     dlat DECIMAL;
     dlng DECIMAL;
     a DECIMAL;
@@ -272,7 +241,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to find nearest available technicians
 CREATE OR REPLACE FUNCTION find_nearest_technicians(
     ticket_lat DECIMAL,
     ticket_lng DECIMAL,
@@ -299,7 +267,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to create geofence for a ticket
 CREATE OR REPLACE FUNCTION create_ticket_geofence(
     p_ticket_id UUID,
     p_radius_meters INTEGER DEFAULT 100
@@ -309,7 +276,6 @@ DECLARE
     ticket_lat DECIMAL;
     ticket_lng DECIMAL;
 BEGIN
-    -- Get ticket location
     SELECT lat, lng INTO ticket_lat, ticket_lng
     FROM tickets 
     WHERE id = p_ticket_id;
@@ -318,7 +284,6 @@ BEGIN
         RAISE EXCEPTION 'Ticket location not found';
     END IF;
     
-    -- Create geofence
     INSERT INTO geofences (ticket_id, center_lat, center_lng, radius_meters)
     VALUES (p_ticket_id, ticket_lat, ticket_lng, p_radius_meters)
     RETURNING id INTO geofence_id;
@@ -327,18 +292,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Insert sample data for testing
-INSERT INTO profiles (id, email, name, role, phone) VALUES
-    ('00000000-0000-0000-0000-000000000001', 'manager@alright.com', 'John Manager', 'manager', '+1234567890'),
-    ('00000000-0000-0000-0000-000000000002', 'tech1@alright.com', 'Mike Technician', 'technician', '+1234567891'),
-    ('00000000-0000-0000-0000-000000000003', 'tech2@alright.com', 'Sarah Technician', 'technician', '+1234567892'),
-    ('00000000-0000-0000-0000-000000000004', 'customer@alright.com', 'Jane Customer', 'customer', '+1234567893');
+CREATE OR REPLACE FUNCTION generate_tracking_number()
+RETURNS TEXT AS $$
+DECLARE
+    new_tracking_number TEXT;
+    counter INTEGER := 1;
+BEGIN
+    LOOP
+        new_tracking_number := 'TKT-' || EXTRACT(EPOCH FROM NOW())::BIGINT || '-' || LPAD(counter::TEXT, 3, '0');
+        
+        IF NOT EXISTS (SELECT 1 FROM tickets WHERE tracking_number = new_tracking_number) THEN
+            RETURN new_tracking_number;
+        END IF;
+        
+        counter := counter + 1;
+        
+        IF counter > 999 THEN
+            RAISE EXCEPTION 'Unable to generate unique tracking number';
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
 
-INSERT INTO technicians (user_id, skills, vehicle_info, status, current_lat, current_lng) VALUES
-    ('00000000-0000-0000-0000-000000000002', '{"plumbing", "electrical"}', '{"type": "van", "model": "Ford Transit", "plate": "ABC123"}', 'available', 25.2048, 55.2708),
-    ('00000000-0000-0000-0000-000000000003', '{"hvac", "plumbing"}', '{"type": "truck", "model": "Chevrolet Silverado", "plate": "XYZ789"}', 'available', 25.2148, 55.2808);
-
-INSERT INTO tickets (customer_name, customer_email, customer_phone, address, lat, lng, category, description, priority, status) VALUES
-    ('Alice Johnson', 'alice@example.com', '+1234567894', '206 Beach Blvd, Dubai', 25.2048, 55.2708, 'plumbing', 'Leaky faucet in kitchen', 'medium', 'pending'),
-    ('Bob Smith', 'bob@example.com', '+1234567895', '102 Collins Ave, Dubai', 25.2148, 55.2808, 'electrical', 'Power outlet not working', 'high', 'pending'),
-    ('Carol Davis', 'carol@example.com', '+1234567896', '305 Marina Walk, Dubai', 25.2248, 55.2908, 'hvac', 'AC not cooling properly', 'low', 'pending');
+INSERT INTO tickets (tracking_number, customer_name, customer_email, customer_phone, address, lat, lng, category, description, priority, status) VALUES
+    ('TKT-NAG-001', 'Arjun Singh', 'arjun.singh@gmail.com', '+91-9876543213', 'Plot 45, Civil Lines, Nagpur', 21.1458, 79.0882, 'plumbing', 'Kitchen tap is leaking continuously', 'medium', 'pending'),
+    ('TKT-NAG-002', 'Sneha Reddy', 'sneha.reddy@gmail.com', '+91-9876543214', 'Flat 302, Ramdaspeth, Nagpur', 21.1558, 79.0982, 'electrical', 'Power socket not working in bedroom', 'high', 'pending'),
+    ('TKT-NAG-003', 'Vikram Joshi', 'vikram.joshi@gmail.com', '+91-9876543215', 'House 12, Dharampeth, Nagpur', 21.1358, 79.0782, 'hvac', 'AC not cooling properly in living room', 'low', 'pending'),
+    ('TKT-NAG-004', 'Kavita Desai', 'kavita.desai@gmail.com', '+91-9876543216', 'Shop 8, Sadar Bazaar, Nagpur', 21.1658, 79.1082, 'appliance_repair', 'Washing machine not starting', 'medium', 'pending'),
+    ('TKT-NAG-005', 'Rohit Agarwal', 'rohit.agarwal@gmail.com', '+91-9876543217', 'Office 15, IT Park, Nagpur', 21.1258, 79.0682, 'electrical', 'Complete power failure in office', 'urgent', 'pending');
