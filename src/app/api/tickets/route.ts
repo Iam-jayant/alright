@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
+import { rateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
   try {
@@ -88,9 +89,17 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Apply rate limiting for ticket creation
+  const rateLimitResponse = rateLimit(rateLimitConfigs.ticketCreation)(request)
+  if (rateLimitResponse) {
+    return rateLimitResponse
+  }
+
   try {
     const supabase = await createClient()
     const body = await request.json()
+    
+    console.log('Received ticket data:', body)
     
     const { 
       customer_name, 
@@ -102,12 +111,26 @@ export async function POST(request: NextRequest) {
       category, 
       description, 
       priority = 'medium',
-      image_url 
+      image_url,
+      tracking_number: providedTrackingNumber
     } = body
 
-    // Generate tracking number
-    const { data: trackingData } = await supabase.rpc('generate_tracking_number')
-    const tracking_number = trackingData || `TKT-${Date.now()}`
+    // Use provided tracking number or generate one
+    let tracking_number = providedTrackingNumber
+    if (!tracking_number) {
+      try {
+        const { data: trackingData, error: trackingError } = await supabase.rpc('generate_tracking_number')
+        if (trackingError) {
+          console.error('Error generating tracking number:', trackingError)
+          tracking_number = `TKT-${Date.now()}`
+        } else {
+          tracking_number = trackingData || `TKT-${Date.now()}`
+        }
+      } catch (error) {
+        console.error('Error calling generate_tracking_number function:', error)
+        tracking_number = `TKT-${Date.now()}`
+      }
+    }
 
     const { data: ticket, error } = await supabase
       .from('tickets')
@@ -130,7 +153,35 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating ticket:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return NextResponse.json({ 
+        error: 'Failed to create ticket', 
+        details: error.message 
+      }, { status: 500 })
+    }
+
+    // Send confirmation email
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/email/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'ticket_confirmation',
+          data: {
+            customerName: ticket.customer_name,
+            customerEmail: ticket.customer_email,
+            trackingNumber: ticket.tracking_number,
+            serviceType: ticket.category,
+            address: ticket.address,
+            priority: ticket.priority
+          }
+        })
+      })
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError)
+      // Don't fail the ticket creation if email fails
     }
 
     return NextResponse.json({ ticket }, { status: 201 })
