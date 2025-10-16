@@ -1,7 +1,4 @@
 import { createClient } from '@/lib/supabase-client'
-import { createClient as createServerClient } from '@/lib/supabase-server'
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
 import type { UserRole } from '@/types'
 
 // Client-side auth helpers
@@ -33,6 +30,17 @@ export async function signInWithEmail(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
+  })
+  return { data, error }
+}
+
+export async function signInWithGoogle() {
+  const supabase = createClient()
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`
+    }
   })
   return { data, error }
 }
@@ -86,53 +94,7 @@ export async function signUpWithEmail(email: string, password: string, userData:
   return { data: { user: authData.user, profile: profileData }, error: null }
 }
 
-// Server-side auth helpers
-export async function getServerUser() {
-  const supabase = await createServerClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  
-  if (error || !user) {
-    return null
-  }
-
-  // Get user profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  return { ...user, profile }
-}
-
-// Role-based access control
-export function requireRole(requiredRole: UserRole) {
-  return async function() {
-    const user = await getServerUser()
-    
-    if (!user || !user.profile) {
-      redirect('/auth/login')
-    }
-
-    if (user.profile.role !== requiredRole) {
-      redirect('/unauthorized')
-    }
-
-    return user
-  }
-}
-
-export function requireAuth() {
-  return async function() {
-    const user = await getServerUser()
-    
-    if (!user || !user.profile) {
-      redirect('/auth/login')
-    }
-
-    return user
-  }
-}
+// Server-side auth helpers (moved to separate file)
 
 // Redirect based on user role
 export function getRedirectPath(role: UserRole): string {
