@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useTechnicians } from '@/hooks/use-technicians'
 import { 
   Search, 
   Filter, 
@@ -21,85 +23,24 @@ import {
   CheckCircle,
   AlertCircle,
   Bike,
-  Car
+  Car,
+  Loader2
 } from 'lucide-react'
 
 export default function TechniciansPage() {
-  // Mock data for technicians
-  const technicians = [
-    {
-      id: 'TECH-001',
-      name: 'Amit Singh',
-      email: 'amit.singh@alright.com',
-      phone: '+91 98765 43210',
-      skills: ['AC Repair', 'Electrical', 'Plumbing'],
-      status: 'available',
-      currentLocation: 'Nagpur Central',
-      lat: 21.1458,
-      lng: 79.0882,
-      vehicleType: 'bike',
-      vehicleModel: 'Honda Activa',
-      vehiclePlate: 'MH-31-AB-1234',
-      rating: 4.8,
-      totalJobs: 156,
-      completedToday: 3,
-      lastActive: '2 minutes ago'
-    },
-    {
-      id: 'TECH-002',
-      name: 'Suresh Yadav',
-      email: 'suresh.yadav@alright.com',
-      phone: '+91 98765 43211',
-      skills: ['Electrical', 'AC Repair'],
-      status: 'busy',
-      currentLocation: 'Civil Lines, Nagpur',
-      lat: 21.1468,
-      lng: 79.0892,
-      vehicleType: 'van',
-      vehicleModel: 'Tata Ace',
-      vehiclePlate: 'MH-31-CD-5678',
-      rating: 4.6,
-      totalJobs: 142,
-      completedToday: 2,
-      lastActive: '5 minutes ago'
-    },
-    {
-      id: 'TECH-003',
-      name: 'Ravi Kumar',
-      email: 'ravi.kumar@alright.com',
-      phone: '+91 98765 43212',
-      skills: ['Plumbing', 'AC Repair', 'Electrical'],
-      status: 'available',
-      currentLocation: 'MG Road, Nagpur',
-      lat: 21.1478,
-      lng: 79.0902,
-      vehicleType: 'bike',
-      vehicleModel: 'Bajaj Pulsar',
-      vehiclePlate: 'MH-31-EF-9012',
-      rating: 4.9,
-      totalJobs: 203,
-      completedToday: 4,
-      lastActive: '1 minute ago'
-    },
-    {
-      id: 'TECH-004',
-      name: 'Vikram Patel',
-      email: 'vikram.patel@alright.com',
-      phone: '+91 98765 43213',
-      skills: ['Electrical', 'Plumbing'],
-      status: 'offline',
-      currentLocation: 'Dharampeth, Nagpur',
-      lat: 21.1488,
-      lng: 79.0912,
-      vehicleType: 'car',
-      vehicleModel: 'Maruti Swift',
-      vehiclePlate: 'MH-31-GH-3456',
-      rating: 4.7,
-      totalJobs: 98,
-      completedToday: 0,
-      lastActive: '2 hours ago'
-    }
-  ]
+  const [filters, setFilters] = useState({
+    status: 'all',
+    skills: 'all',
+    vehicle_type: 'all',
+    search: ''
+  })
+
+  const { technicians, loading, error } = useTechnicians({
+    status: filters.status !== 'all' ? filters.status : undefined,
+    skills: filters.skills !== 'all' ? filters.skills : undefined,
+    vehicle_type: filters.vehicle_type !== 'all' ? filters.vehicle_type : undefined,
+    search: filters.search || undefined
+  })
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -128,6 +69,36 @@ export default function TechniciansPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary-yellow" />
+              <p className="text-gray-600">Loading technicians...</p>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-red-600 mb-4">Error loading technicians</p>
+              <p className="text-sm text-gray-500">{error}</p>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
   return (
     <DashboardLayout>
       <div className="p-6">
@@ -148,13 +119,15 @@ export default function TechniciansPage() {
                   <Input
                     placeholder="Search technicians by name, skills, or location..."
                     className="pl-10"
+                    value={filters.search}
+                    onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
                   />
                 </div>
               </div>
 
               {/* Filters */}
               <div className="flex gap-4">
-                <Select>
+                <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
@@ -166,19 +139,19 @@ export default function TechniciansPage() {
                   </SelectContent>
                 </Select>
 
-                <Select>
+                <Select value={filters.skills} onValueChange={(value) => setFilters(prev => ({ ...prev, skills: value }))}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Skills" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Skills</SelectItem>
-                    <SelectItem value="ac">AC Repair</SelectItem>
-                    <SelectItem value="plumbing">Plumbing</SelectItem>
-                    <SelectItem value="electrical">Electrical</SelectItem>
+                    <SelectItem value="AC Repair">AC Repair</SelectItem>
+                    <SelectItem value="Plumbing">Plumbing</SelectItem>
+                    <SelectItem value="Electrical">Electrical</SelectItem>
                   </SelectContent>
                 </Select>
 
-                <Select>
+                <Select value={filters.vehicle_type} onValueChange={(value) => setFilters(prev => ({ ...prev, vehicle_type: value }))}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="Vehicle" />
                   </SelectTrigger>
@@ -207,144 +180,162 @@ export default function TechniciansPage() {
 
         {/* Technicians Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {technicians.map((tech) => (
-            <Card key={tech.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-primary-yellow rounded-full flex items-center justify-center">
-                      <User className="h-6 w-6 text-black" />
+          {technicians.length === 0 ? (
+            <div className="col-span-full">
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <p className="text-gray-500">No technicians found matching your criteria</p>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            technicians.map((tech) => (
+              <Card key={tech.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-12 h-12 bg-primary-yellow rounded-full flex items-center justify-center">
+                        <User className="h-6 w-6 text-black" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{tech.profiles.name}</h3>
+                        <p className="text-sm text-gray-500">{tech.id}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{tech.name}</h3>
-                      <p className="text-sm text-gray-500">{tech.id}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm">
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(tech.status)}`}>
-                    {getStatusIcon(tech.status)}
-                    <span className="capitalize">{tech.status}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-yellow-500">★</span>
-                    <span className="text-sm font-medium">{tech.rating}</span>
-                  </div>
-                </div>
-
-                {/* Contact Info */}
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Mail className="h-4 w-4 mr-2" />
-                    {tech.email}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Phone className="h-4 w-4 mr-2" />
-                    {tech.phone}
-                  </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    {tech.currentLocation}
-                  </div>
-                </div>
-
-                {/* Skills */}
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-900 mb-2">Skills</p>
-                  <div className="flex flex-wrap gap-1">
-                    {tech.skills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="px-2 py-1 bg-primary-yellow/10 text-primary-yellow text-xs rounded-full"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Vehicle Info */}
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      {getVehicleIcon(tech.vehicleType)}
-                      <span className="text-sm font-medium text-gray-900 capitalize">{tech.vehicleType}</span>
+                      <Button variant="outline" size="sm">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <span className="text-xs text-gray-500">{tech.vehiclePlate}</span>
                   </div>
-                  <p className="text-xs text-gray-600 mt-1">{tech.vehicleModel}</p>
-                </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900">{tech.totalJobs}</p>
-                    <p className="text-xs text-gray-500">Total Jobs</p>
+                  {/* Status */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(tech.status)}`}>
+                      {getStatusIcon(tech.status)}
+                      <span className="capitalize">{tech.status}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-yellow-500">★</span>
+                      <span className="text-sm font-medium">4.5</span>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-gray-900">{tech.completedToday}</p>
-                    <p className="text-xs text-gray-500">Today</p>
+
+                  {/* Contact Info */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Mail className="h-4 w-4 mr-2" />
+                      {tech.profiles.email}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <Phone className="h-4 w-4 mr-2" />
+                      {tech.profiles.phone}
+                    </div>
+                    <div className="flex items-center text-sm text-gray-600">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      {tech.current_lat && tech.current_lng ? 'Location Available' : 'Location Unknown'}
+                    </div>
                   </div>
-                </div>
 
-                {/* Actions */}
-                <div className="flex space-x-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    View Location
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Assign Job
-                  </Button>
-                </div>
+                  {/* Skills */}
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-gray-900 mb-2">Skills</p>
+                    <div className="flex flex-wrap gap-1">
+                      {tech.skills?.map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-2 py-1 bg-primary-yellow/10 text-primary-yellow text-xs rounded-full"
+                        >
+                          {skill}
+                        </span>
+                      )) || <span className="text-xs text-gray-500">No skills listed</span>}
+                    </div>
+                  </div>
 
-                {/* Last Active */}
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="text-xs text-gray-500 text-center">
-                    Last active: {tech.lastActive}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  {/* Vehicle Info */}
+                  <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        {getVehicleIcon(tech.vehicle_type)}
+                        <span className="text-sm font-medium text-gray-900 capitalize">{tech.vehicle_type}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{tech.vehicle_plate}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">{tech.vehicle_model}</p>
+                  </div>
+
+                  {/* Distance */}
+                  {tech.distance && (
+                    <div className="mb-4 p-2 bg-blue-50 rounded-lg">
+                      <p className="text-xs text-blue-600 text-center">
+                        {tech.distance.toFixed(1)} km away
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex space-x-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      View Location
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      Assign Job
+                    </Button>
+                  </div>
+
+                  {/* Last Active */}
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 text-center">
+                      Updated: {new Date(tech.updated_at).toLocaleString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
 
         {/* Summary Stats */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-gray-900">4</p>
+              <p className="text-2xl font-bold text-gray-900">{technicians.length}</p>
               <p className="text-sm text-gray-500">Total Technicians</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-600">2</p>
+              <p className="text-2xl font-bold text-green-600">
+                {technicians.filter(t => t.status === 'available').length}
+              </p>
               <p className="text-sm text-gray-500">Available</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-yellow-600">1</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {technicians.filter(t => t.status === 'busy').length}
+              </p>
               <p className="text-sm text-gray-500">Busy</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-gray-600">1</p>
+              <p className="text-2xl font-bold text-gray-600">
+                {technicians.filter(t => t.status === 'offline').length}
+              </p>
               <p className="text-sm text-gray-500">Offline</p>
             </CardContent>
           </Card>
