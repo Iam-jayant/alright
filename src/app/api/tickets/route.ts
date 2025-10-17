@@ -154,6 +154,15 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating ticket:', error)
       console.error('Error details:', JSON.stringify(error, null, 2))
+      
+      // Handle RLS policy errors
+      if (error.message.includes('infinite recursion detected in policy')) {
+        return NextResponse.json({ 
+          error: 'Database configuration issue. Please contact support.', 
+          details: 'RLS policy error - this is a temporary issue that will be resolved shortly.'
+        }, { status: 500 })
+      }
+      
       return NextResponse.json({ 
         error: 'Failed to create ticket', 
         details: error.message 
