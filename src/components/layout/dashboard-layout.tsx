@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useAuth } from '@/components/providers'
 import { Button } from '@/components/ui/button'
 import { 
   LayoutDashboard, 
@@ -14,38 +13,37 @@ import {
   Bell, 
   Search,
   LogOut,
-  User
+  User,
+  MapPin
 } from 'lucide-react'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
 }
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
-  { name: 'Technicians', href: '/dashboard/technicians', icon: Users },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Settings', href: '/dashboard/settings', icon: Settings },
-]
+  const navigation = [
+    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Tickets', href: '/dashboard/tickets', icon: Ticket },
+    { name: 'Technicians', href: '/dashboard/technicians', icon: Users },
+    { name: 'Live Map', href: '/dashboard/map', icon: MapPin },
+    { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+  ]
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, profile, signOut } = useAuth()
-
-  if (!user || !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-yellow mx-auto mb-4"></div>
-          <p>Loading...</p>
-        </div>
-      </div>
-    )
+  
+  // Mock user data for development (auth disabled)
+  const user = { id: 'dev-user', email: 'manager@alright.dev' }
+  const profile = { name: 'Manager User', role: 'manager', phone: '+91 98765 43210' }
+  
+  const signOut = () => {
+    // Mock sign out - just reload the page
+    window.location.reload()
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 grid-layout layout-container">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
@@ -53,38 +51,38 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
       )}
 
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+      {/* Sidebar - Fixed width, no gaps */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-48 sm:w-52 lg:w-60 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col ${
         sidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
-        <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
+        <div className="flex items-center justify-between h-14 px-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary-yellow rounded-lg flex items-center justify-center">
-              <span className="text-black font-bold text-lg">⚡</span>
+            <div className="w-7 h-7 bg-primary-yellow rounded-lg flex items-center justify-center">
+              <span className="text-black font-bold text-sm">⚡</span>
             </div>
-            <span className="text-xl font-bold text-gray-900">Alright</span>
+            <span className="text-lg font-bold text-gray-900">Alright</span>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
+            className="lg:hidden p-1.5 rounded-md text-gray-400 hover:text-gray-600"
           >
-            <X className="h-6 w-6" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="mt-8 px-4">
-          <ul className="space-y-2">
+        {/* Navigation - Flex grow to fill space */}
+        <nav className="flex-1 mt-6 px-3 overflow-y-auto">
+          <ul className="space-y-1">
             {navigation.map((item) => {
               const Icon = item.icon
               return (
                 <li key={item.name}>
                   <a
                     href={item.href}
-                    className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-primary-yellow/10 hover:text-gray-900 transition-colors group"
+                    className="flex items-center px-3 py-2.5 text-sm font-medium text-gray-700 rounded-lg hover:bg-primary-yellow/10 hover:text-gray-900 transition-colors group"
                   >
-                    <Icon className="mr-3 h-5 w-5 text-gray-400 group-hover:text-primary-yellow" />
-                    {item.name}
+                    <Icon className="mr-2.5 h-4 w-4 text-gray-400 group-hover:text-primary-yellow flex-shrink-0" />
+                    <span className="truncate text-xs sm:text-sm">{item.name}</span>
                   </a>
                 </li>
               )
@@ -92,14 +90,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </ul>
         </nav>
 
-        {/* User profile section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-primary-yellow rounded-full flex items-center justify-center">
-              <User className="h-5 w-5 text-black" />
+        {/* User profile section - Fixed at bottom */}
+        <div className="p-3 border-t border-gray-200 bg-white flex-shrink-0">
+          <div className="flex items-center space-x-2 mb-3">
+            <div className="w-8 h-8 bg-primary-yellow rounded-full flex items-center justify-center flex-shrink-0">
+              <User className="h-4 w-4 text-black" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{profile.name}</p>
+              <p className="text-xs font-medium text-gray-900 truncate">{profile.name}</p>
               <p className="text-xs text-gray-500 capitalize">{profile.role}</p>
             </div>
           </div>
@@ -107,18 +105,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             variant="outline"
             size="sm"
             onClick={signOut}
-            className="w-full flex items-center justify-center space-x-2"
+            className="w-full flex items-center justify-center space-x-1.5 text-xs py-1.5 h-8"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-3 w-3" />
             <span>Sign Out</span>
           </Button>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="lg:pl-64">
-        {/* Top header */}
-        <header className="bg-white shadow-sm border-b border-gray-200">
+      {/* Main content - Takes remaining space */}
+      <div className="flex flex-col min-h-screen overflow-x-hidden">
+        {/* Top header - Sticky */}
+        <header className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
             <div className="flex items-center">
               <button
@@ -165,8 +163,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1">
+        {/* Page content - Content starts immediately after navbar */}
+        <main className="flex-1 bg-gray-50 overflow-y-auto">
           {children}
         </main>
       </div>
